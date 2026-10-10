@@ -6,6 +6,12 @@ export class BadRequestError extends AppError {
   }
 }
 
+export class ConflictError extends AppError {
+  constructor(message: string = "Conflict") {
+    super(ErrorType.CONFLICT, 409, message);
+  }
+}
+
 export class NotFoundError extends AppError {
   constructor(message: string = "Resource not found") {
     super(ErrorType.NOT_FOUND, 404, message);

@@ -5,6 +5,7 @@ import { AppError, ErrorType } from "./core/AppError.js";
 import Logger from "./core/Logger.js";
 import { env } from "./config/env.js";
 import { InternalError } from "./core/CustomError.js";
+import authRoute from "./modules/auth/auth.route.js";
 
 const app = express();
 
@@ -15,7 +16,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-//app routes
+app.use("/api/auth", authRoute);
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof AppError) {
@@ -38,7 +39,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
         });
       }
 
-      AppError.handle(new InternalError(), res)
+      AppError.handle(new InternalError(), res);
     }
   }
 });

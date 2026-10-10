@@ -10,6 +10,7 @@ export enum ErrorType {
   TOKEN_EXPIRED = "TokenExpired",
   BAD_TOKEN = "BadToken",
   ACCESS_TOKEN_ERROR = "AccessTokenError",
+  CONFLICT = 'Conflict'
 }
 
 export class AppError extends Error {
