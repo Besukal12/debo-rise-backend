@@ -15,6 +15,8 @@ const envSchema = z.object({
     (value) => ["postgres:", "postgresql:"].includes(new URL(value).protocol),
     { message: "DATABASE_URL must be a PostgreSQL connection URL" },
   ),
+  LOG_DIR: z.string().default("./logs"),
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 
 export const env = envSchema.parse(process.env);

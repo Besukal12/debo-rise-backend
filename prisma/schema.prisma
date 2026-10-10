@@ -77,7 +77,6 @@ model User {
   email           String         @unique
   passwordHash    String
   fullName        String
-  amharicName     String?
   role            Role           @default(STUDENT)
   
   // Demographics & Background

@@ -1,0 +1,117 @@
+import { z } from "zod";
+
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.email().max(254));
+const passwordSchema = z.string().min(12).max(128);
+const nameSchema = z.string().trim().min(2).max(100);
+const optionalNameSchema = z.string().trim().min(2).max(100).optional();
+const optionalEmailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.email().max(254))
+  .optional();
+const optionalPhoneSchema = z
+  .string()
+  .trim()
+  .regex(/^\+?[1-9]\d{6,14}$/, "Enter a valid phone number")
+  .optional();
+
+const educationLevelSchema = z.enum([
+  "HIGH_SCHOOL_STUDENT",
+  "HIGH_SCHOOL_GRADUATE",
+  "UNIVERSITY_STUDENT",
+  "UNIVERSITY_GRADUATE",
+  "OTHER",
+]);
+
+const workStatusSchema = z.enum([
+  "STUDENT_ONLY",
+  "UNEMPLOYED_SEEKING_WORK",
+  "FREELANCER",
+  "EMPLOYED",
+  "OTHER",
+]);
+
+export const registerSchema = z
+  .object({
+    fullName: nameSchema,
+    email: emailSchema,
+    password: passwordSchema,
+    age: z.number().int().min(1).max(120),
+    educationLevel: educationLevelSchema.optional(),
+    workStatus: workStatusSchema.optional(),
+    guardianName: optionalNameSchema,
+    guardianEmail: optionalEmailSchema,
+    guardianPhone: optionalPhoneSchema,
+  })
+  .strict()
+  .superRefine((data, context) => {
+    if (data.age < 18) {
+      if (!data.guardianName) {
+        context.addIssue({
+          code: "custom",
+          path: ["guardianName"],
+          message: "Guardian name is required for users under 18",
+        });
+      }
+
+      if (!data.guardianEmail && !data.guardianPhone) {
+        context.addIssue({
+          code: "custom",
+          path: ["guardianEmail"],
+          message: "Provide a guardian email address or phone number",
+        });
+      }
+    }
+  });
+
+export const loginSchema = z
+  .object({
+    email: emailSchema,
+    password: z.string().min(1).max(128),
+  })
+  .strict();
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1).max(128),
+  })
+  .strict()
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  })
+  .refine((data) => data.currentPassword !== data.newPassword, {
+    path: ["newPassword"],
+    message: "New password must be different from the current password",
+  });
+
+export const forgotPasswordSchema = z
+  .object({
+    email: emailSchema,
+  })
+  .strict();
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().trim().min(20).max(512),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1).max(128),
+  })
+  .strict()
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
+
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
