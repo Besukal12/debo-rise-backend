@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import jwt, { TokenExpiredError as JwtTokenExpiredError } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { BadTokenError, TokenExpiredError } from "../core/CustomError.js";
 
@@ -20,7 +20,7 @@ function verifyToken(token: string, secret: string, tokenUse: "access" | "refres
     return payload;
   } catch (error) {
     if (error instanceof BadTokenError) throw error;
-    if (error instanceof JwtTokenExpiredError) throw new TokenExpiredError();
+    if (error instanceof jwt.TokenExpiredError) throw new TokenExpiredError();
     throw new BadTokenError();
   }
 }
