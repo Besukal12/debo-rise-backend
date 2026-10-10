@@ -11,6 +11,7 @@ loadEnv({ path: path.join(backendDir, ".env") });
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
+  DATABASE_URL: z.coerce.string()
 });
 
 export const env = envSchema.parse(process.env);
