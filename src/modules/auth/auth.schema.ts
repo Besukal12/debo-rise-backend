@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { z } from "zod";
 
 const emailSchema = z
@@ -5,7 +6,9 @@ const emailSchema = z
   .trim()
   .toLowerCase()
   .pipe(z.email().max(254));
-const passwordSchema = z.string().min(12).max(128);
+const passwordFitsBcrypt = (value: string) => Buffer.byteLength(value, "utf8") <= 72;
+const passwordSchema = z.string().min(8).max(72).refine(passwordFitsBcrypt, { message: "Password must be at most 72 bytes" });
+const suppliedPasswordSchema = z.string().min(1).max(72).refine(passwordFitsBcrypt, { message: "Password must be at most 72 bytes" });
 const nameSchema = z.string().trim().min(2).max(100);
 const optionalNameSchema = z.string().trim().min(2).max(100).optional();
 const optionalEmailSchema = z
@@ -72,15 +75,15 @@ export const registerSchema = z
 export const loginSchema = z
   .object({
     email: emailSchema,
-    password: z.string().min(1).max(128),
+    password: suppliedPasswordSchema,
   })
   .strict();
 
 export const changePasswordSchema = z
   .object({
-    currentPassword: z.string().min(1).max(128),
+    currentPassword: suppliedPasswordSchema,
     newPassword: passwordSchema,
-    confirmPassword: z.string().min(1).max(128),
+    confirmPassword: suppliedPasswordSchema,
   })
   .strict()
   .refine((data) => data.newPassword === data.confirmPassword, {

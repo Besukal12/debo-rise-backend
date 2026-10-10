@@ -1,7 +1,7 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import { AppError, ErrorType } from "./core/AppError.js";
+import { AppError } from "./core/AppError.js";
 import Logger from "./core/Logger.js";
 import { env } from "./config/env.js";
 import { InternalError } from "./core/CustomError.js";
@@ -9,39 +9,25 @@ import authRoute from "./modules/auth/auth.route.js";
 
 const app = express();
 
-app.use(cors);
+app.use(cors({ origin: env.WEB_ORIGIN ?? false, credentials: true }));
 
 app.use(cookieParser());
+app.use(express.json({ limit: "1mb" }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use("/api/auth", authRoute);
 
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof AppError) {
-    AppError.handle(err, res);
-
-    if (err.type === ErrorType.INTERNAL) {
-      Logger.error(
-        `500 - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`,
-      );
-    } else {
-      Logger.error(
-        `500 - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`,
-      );
-      Logger.error(err.stack);
-
-      if (env.NODE_ENV === "development") {
-        res.status(500).send({
-          message: err.message,
-          stack: err.stack,
-        });
-      }
-
-      AppError.handle(new InternalError(), res);
+    if (err.statusCode >= 500) {
+      Logger.error(String(err.statusCode) + " " + req.method + " " + req.originalUrl + ": " + err.message);
+      if (err.stack) Logger.error(err.stack);
     }
+    AppError.handle(err, res);
+    return;
   }
+  Logger.error("Unhandled error " + req.method + " " + req.originalUrl, err);
+  AppError.handle(new InternalError(), res);
 });
-
 export default app;
