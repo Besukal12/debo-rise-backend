@@ -1,13 +1,7 @@
 import type { Request, Response } from "express";
 import { Prisma } from "../../generated/prisma/client.js";
-import { env } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
-import {
-  BadRequestError,
-  ConflictError,
-  ForbiddenError,
-  UnauthorizedError,
-} from "../../core/CustomError.js";
+import { ConflictError, UnauthorizedError } from "../../core/CustomError.js";
 import { checkPassword, hashPassword } from "../../lib/hash.js";
 import {
   createAccessToken,
@@ -20,57 +14,13 @@ import {
   registerSchema,
   loginSchema,
 } from "./auth.schema.js";
-
-const refreshCookieName = "debo_refresh";
-const refreshCookieOptions = {
-  httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: "strict" as const,
-  path: "/api/auth",
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-};
-
-function assertTrustedOrigin(req: Request): void {
-  const origin = req.get("origin");
-  if (!origin) return;
-
-  const allowedOrigin = env.WEB_ORIGIN
-    ? new URL(env.WEB_ORIGIN).origin
-    : new URL(`${req.protocol}://${req.get("host")}`).origin;
-
-  try {
-    if (new URL(origin).origin !== allowedOrigin)
-      throw new ForbiddenError("Untrusted request origin");
-  } catch (error) {
-    if (error instanceof ForbiddenError) throw error;
-    throw new ForbiddenError("Untrusted request origin");
-  }
-}
-
-function setRefreshCookie(res: Response, token: string): void {
-  res.cookie(refreshCookieName, token, refreshCookieOptions);
-}
-
-function clearRefreshCookie(res: Response): void {
-  res.clearCookie(refreshCookieName, {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/api/auth",
-  });
-}
-
-function validationError(
-  issues: { path: PropertyKey[]; message: string }[],
-): BadRequestError {
-  return new BadRequestError(
-    "Invalid request data",
-    issues.map((issue) => ({
-      field: issue.path.join("."),
-      message: issue.message,
-    })),
-  );
-}
+import {
+  assertTrustedOrigin,
+  validationError,
+  setRefreshCookie,
+  refreshCookieName,
+  clearRefreshCookie,
+} from "./auth.service.js";
 
 export async function RegisterUser(req: Request, res: Response): Promise<void> {
   assertTrustedOrigin(req);
