@@ -10,18 +10,16 @@ const passwordFitsBcrypt = (value: string) => Buffer.byteLength(value, "utf8") <
 const passwordSchema = z.string().min(8).max(72).refine(passwordFitsBcrypt, { message: "Password must be at most 72 bytes" });
 const suppliedPasswordSchema = z.string().min(1).max(72).refine(passwordFitsBcrypt, { message: "Password must be at most 72 bytes" });
 const nameSchema = z.string().trim().min(2).max(100);
-const optionalNameSchema = z.string().trim().min(2).max(100).optional();
-const optionalEmailSchema = z
-  .string()
-  .trim()
-  .toLowerCase()
-  .pipe(z.email().max(254))
-  .optional();
-const optionalPhoneSchema = z
-  .string()
-  .trim()
-  .regex(/^\+?[1-9]\d{6,14}$/, "Enter a valid phone number")
-  .optional();
+const blankToUndefined = (value: unknown) => value === "" ? undefined : value;
+const optionalNameSchema = z.preprocess(blankToUndefined, z.string().trim().min(2).max(100).optional());
+const optionalEmailSchema = z.preprocess(
+  blankToUndefined,
+  z.string().trim().toLowerCase().pipe(z.email().max(254)).optional(),
+);
+const optionalPhoneSchema = z.preprocess(
+  blankToUndefined,
+  z.string().trim().regex(/^\+?[1-9]\d{6,14}$/, "Enter a valid phone number").optional(),
+);
 
 const educationLevelSchema = z.enum([
   "HIGH_SCHOOL_STUDENT",
@@ -70,7 +68,10 @@ export const registerSchema = z
         });
       }
     }
-  });
+  })
+  .transform((data) => data.age >= 18
+    ? { ...data, guardianName: undefined, guardianEmail: undefined, guardianPhone: undefined }
+    : data);
 
 export const loginSchema = z
   .object({

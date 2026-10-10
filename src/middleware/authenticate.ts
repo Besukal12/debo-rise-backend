@@ -24,11 +24,13 @@ export async function authenticate(
 ): Promise<void> {
   const match = req.get("authorization")?.match(/^Bearer ([^ ]+)$/i);
   if (!match) throw new UnauthorizedError("Authentication required");
+
   const { userId } = verifyAccessToken(match[1]);
   const user = await prisma.user.findFirst({
     where: { id: userId, deletedAt: null },
     select: { id: true, role: true, ageGroup: true, parentConsent: true },
   });
+
   if (!user) throw new UnauthorizedError("Authentication required");
   req.auth = {
     userId: user.id,
@@ -53,6 +55,7 @@ export function authorizeRoles(...allowedRoles: Role[]): RequestHandler {
 export function requireGuardianConsent(): RequestHandler {
   return (req, _res, next) => {
     if (!req.auth) throw new UnauthorizedError("Authentication required");
+    
     if (req.auth.ageGroup === "MINOR" && !req.auth.parentConsent) {
       throw new ForbiddenError(
         "Guardian consent must be verified before accessing program content",

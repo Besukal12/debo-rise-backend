@@ -51,6 +51,25 @@ describe("auth validation", () => {
     ).toBe(true);
   });
 
+  it("does not require or retain guardian details for adults", () => {
+    const adult = {
+      fullName: "Adult Student",
+      email: "adult@example.com",
+      password: "a sufficiently long password",
+      age: 22,
+      guardianName: "",
+      guardianEmail: "",
+      guardianPhone: "",
+    };
+    const parsed = registerSchema.safeParse(adult);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.guardianName).toBeUndefined();
+      expect(parsed.data.guardianEmail).toBeUndefined();
+      expect(parsed.data.guardianPhone).toBeUndefined();
+    }
+  });
+
   it("does not allow users to choose their role or submit an oversized password", () => {
     const input = {
       fullName: "Student Name",
