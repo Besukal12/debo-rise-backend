@@ -1,4 +1,8 @@
-import express, { type NextFunction, type Request, type Response } from "express";
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { AppError } from "./core/AppError.js";
@@ -9,6 +13,7 @@ import authRoute from "./modules/auth/auth.route.js";
 import moduleRoute from "./modules/module/module.route.js";
 import trackRoute from "./modules/track/track.route.js";
 import lessonRoute from "./modules/lesson/lesson.route.js";
+import meetingRoute from "./modules/meeting/meeting.route.js";
 
 const app = express();
 
@@ -23,11 +28,20 @@ app.use("/api/auth", authRoute);
 app.use("/api/tracks", trackRoute);
 app.use("/api/modules", moduleRoute);
 app.use("/api/lessons", lessonRoute);
+app.use("/api/meetings", meetingRoute);
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof AppError) {
     if (err.statusCode >= 500) {
-      Logger.error(String(err.statusCode) + " " + req.method + " " + req.originalUrl + ": " + err.message);
+      Logger.error(
+        String(err.statusCode) +
+          " " +
+          req.method +
+          " " +
+          req.originalUrl +
+          ": " +
+          err.message,
+      );
       if (err.stack) Logger.error(err.stack);
     }
     AppError.handle(err, res);
