@@ -17,6 +17,17 @@ const mockState = vi.hoisted(() => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
+    lesson: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    userLessonProgress: {
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+    },
   },
 }));
 

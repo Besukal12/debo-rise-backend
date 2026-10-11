@@ -8,6 +8,7 @@ import { InternalError } from "./core/CustomError.js";
 import authRoute from "./modules/auth/auth.route.js";
 import moduleRoute from "./modules/module/module.route.js";
 import trackRoute from "./modules/track/track.route.js";
+import lessonRoute from "./modules/lesson/lesson.route.js";
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use("/api/auth", authRoute);
 app.use("/api/tracks", trackRoute);
 app.use("/api/modules", moduleRoute);
+app.use("/api/lessons", lessonRoute);
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof AppError) {
