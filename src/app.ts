@@ -6,6 +6,7 @@ import Logger from "./core/Logger.js";
 import { env } from "./config/env.js";
 import { InternalError } from "./core/CustomError.js";
 import authRoute from "./modules/auth/auth.route.js";
+import moduleRoute from "./modules/module/module.route.js";
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use("/api/auth", authRoute);
+app.use("/api/modules", moduleRoute);
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof AppError) {

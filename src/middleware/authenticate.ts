@@ -52,6 +52,8 @@ export function authorizeRoles(...allowedRoles: Role[]): RequestHandler {
   };
 }
 
+export const isAdmin = authorizeRoles("ADMIN");
+
 export function requireGuardianConsent(): RequestHandler {
   return (req, _res, next) => {
     if (!req.auth) throw new UnauthorizedError("Authentication required");
