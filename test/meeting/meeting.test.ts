@@ -206,6 +206,28 @@ describe("meeting HTTP routes", () => {
     expect(prismaMock.trackMeeting.findMany).not.toHaveBeenCalled();
   });
 
+  it("returns no meetings to users who are not assigned to a track", async () => {
+    prismaMock.user.findFirst.mockImplementation(async (args: { select?: Record<string, boolean> }) => {
+      if (args.select?.role) {
+        return {
+          id: studentId,
+          role: "STUDENT",
+          ageGroup: "ADULT",
+          parentConsent: true,
+        };
+      }
+      return { trackId: null };
+    });
+
+    const response = await request(app)
+      .get("/api/meetings")
+      .set("Authorization", `Bearer ${createAccessToken(studentId)}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.meetings).toEqual([]);
+    expect(prismaMock.trackMeeting.findMany).not.toHaveBeenCalled();
+  });
+
   it("allows admin and supporter to list meetings by track", async () => {
     const response = await request(app)
       .get(`/api/meetings?trackId=${trackId}`)

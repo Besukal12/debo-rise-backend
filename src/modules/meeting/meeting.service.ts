@@ -1,6 +1,6 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../../config/prisma.js";
-import { ForbiddenError, NotFoundError } from "../../core/CustomError.js";
+import { NotFoundError } from "../../core/CustomError.js";
 import type {
   CreateMeetingInput,
   UpdateMeetingInput,
@@ -58,9 +58,10 @@ export async function listMeetings(
   let trackId = requestedTrackId;
   if (!canManage) {
     const assignedTrackId = await getUserTrackId(userId);
+    if (!assignedTrackId) return [];
     if (requestedTrackId && requestedTrackId !== assignedTrackId)
       throw new NotFoundError("Track not found");
-    trackId = assignedTrackId ?? undefined;
+    trackId = assignedTrackId;
   } else if (trackId) {
     await ensureTrackExists(trackId);
   }
