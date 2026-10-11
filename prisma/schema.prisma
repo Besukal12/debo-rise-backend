@@ -19,8 +19,8 @@ enum Role {
 }
 
 enum AgeGroup {
-  MINOR     
-  ADULT    
+  MINOR
+  ADULT
 }
 
 enum EducationLevel {
@@ -73,62 +73,62 @@ enum MeetingType {
 // 1. IDENTITY & USER MANAGEMENT
 
 model User {
-  id              String         @id @default(uuid())
-  email           String         @unique
-  passwordHash    String
-  fullName        String
-  role            Role           @default(STUDENT)
-  
+  id           String @id @default(uuid())
+  email        String @unique
+  passwordHash String
+  fullName     String
+  role         Role   @default(STUDENT)
+
   // Demographics & Background
-  age             Int            
-  ageGroup        AgeGroup       
-  educationLevel  EducationLevel @default(HIGH_SCHOOL_STUDENT)
-  workStatus      WorkStatus     @default(UNEMPLOYED_SEEKING_WORK)
-  
+  age            Int
+  ageGroup       AgeGroup
+  educationLevel EducationLevel @default(HIGH_SCHOOL_STUDENT)
+  workStatus     WorkStatus     @default(UNEMPLOYED_SEEKING_WORK)
+
   // Cloudinary Image Asset URL
-  avatarUrl       String?        
-  
-  schoolOrOrg     String?        
-  location        String?        @default("Addis Ababa")
-  language        LanguagePref   @default(EN)
-  dailyReminders  Boolean        @default(true)
-  helpNotify      Boolean        @default(true)
-  isPrivate       Boolean        @default(true)
+  avatarUrl String?
+
+  schoolOrOrg    String?
+  location       String?      @default("Addis Ababa")
+  language       LanguagePref @default(EN)
+  dailyReminders Boolean      @default(true)
+  helpNotify     Boolean      @default(true)
+  isPrivate      Boolean      @default(true)
 
   // Gamification & Progression
-  growthLevel     Int            @default(1)
-  stageName       String         @default("Active Sprout")
-  stageProgress   Int            @default(0)  
-  deboSparks      Int            @default(0)
-  helpsGiven      Int            @default(0)
+  growthLevel   Int    @default(1)
+  stageName     String @default("Active Sprout")
+  stageProgress Int    @default(0)
+  deboSparks    Int    @default(0)
+  helpsGiven    Int    @default(0)
 
   // Guardian & Youth Protection
-  guardianName    String?
-  guardianEmail   String?
-  guardianPhone   String?
-  parentConsent   Boolean        @default(false)
+  guardianName  String?
+  guardianEmail String?
+  guardianPhone String?
+  parentConsent Boolean @default(false)
 
   // Soft Delete & Auditability
-  deletedAt       DateTime?
+  deletedAt DateTime?
 
   // Relations
-  trackId         String?
-  track           Track?         @relation(fields: [trackId], references: [id])
-  
-  refreshTokens   RefreshToken[]
-  deviceTokens    DeviceToken[]
-  helpRequests    HelpRequest[]
-  replies         HelpReply[]
-  assignedTickets HelpRequest[]  @relation("MentorAssignments")
-  progresses      UserLessonProgress[]
-  projects        Project[]
-  submissions     Submission[]
-  certifications  Certification[] @relation("MentorCertifications")
-  attendanceLogs  AttendanceRecord[] @relation("StudentAttendance")
-  markedAttendance AttendanceRecord[] @relation("SupporterAttendance")
+  trackId String?
+  track   Track?  @relation(fields: [trackId], references: [id])
 
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  refreshTokens    RefreshToken[]
+  deviceTokens     DeviceToken[]
+  helpRequests     HelpRequest[]
+  replies          HelpReply[]
+  assignedTickets  HelpRequest[]        @relation("MentorAssignments")
+  progresses       UserLessonProgress[]
+  projects         Project[]
+  submissions      Submission[]
+  certifications   Certification[]      @relation("MentorCertifications")
+  attendanceLogs   AttendanceRecord[]   @relation("StudentAttendance")
+  markedAttendance AttendanceRecord[]   @relation("SupporterAttendance")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([trackId])
   @@index([role])
@@ -140,7 +140,7 @@ model DeviceToken {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   pushToken String   @unique
-  platform  String   
+  platform  String
   lastSeen  DateTime @default(now())
 
   @@index([userId])
@@ -161,8 +161,8 @@ model RefreshToken {
 
 model Track {
   id          String         @id @default(uuid())
-  slug        String         @unique 
-  title       String         
+  slug        String         @unique
+  title       String
   description String
   modules     Module[]
   users       User[]
@@ -170,34 +170,34 @@ model Track {
 }
 
 model Module {
-  id          String   @id @default(uuid())
-  trackId     String
-  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
-  weekNumber  Int      
-  title       String   
-  lessons     Lesson[]
+  id         String   @id @default(uuid())
+  trackId    String
+  track      Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  weekNumber Int
+  title      String
+  lessons    Lesson[]
 
   @@index([trackId])
 }
 
 model Lesson {
-  id            String   @id @default(uuid())
-  moduleId      String
-  module        Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  lessonNumber  Int      
-  title         String   
-  durationMin   Int      
-  isMilestone   Boolean  @default(false)
-  
-  readMarkdown  String   @db.Text
-  videoUrl      String?
-  videoDuration String?  
-  starterCode   String?  @db.Text
-  checklist     Json     
+  id           String  @id @default(uuid())
+  moduleId     String
+  module       Module  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  lessonNumber Int
+  title        String
+  durationMin  Int
+  isMilestone  Boolean @default(false)
 
-  progresses    UserLessonProgress[]
-  submissions   Submission[]
-  helpRequests  HelpRequest[]
+  readMarkdown  String  @db.Text
+  videoUrl      String?
+  videoDuration String?
+  starterCode   String? @db.Text
+  checklist     Json
+
+  progresses   UserLessonProgress[]
+  submissions  Submission[]
+  helpRequests HelpRequest[]
 
   @@index([moduleId])
 }
@@ -207,7 +207,7 @@ model UserLessonProgress {
   userId      String
   lessonId    String
   status      LessonStatus @default(UPCOMING)
-  checkedList Json         
+  checkedList Json
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   lesson      Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   updatedAt   DateTime     @updatedAt
@@ -220,30 +220,30 @@ model UserLessonProgress {
 // 3. COMMUNITY HELP TICKETS (#CallADebo)
 
 model HelpRequest {
-  id               String        @id @default(uuid())
-  ticketNumber     Int           @default(autoincrement()) 
-  userId           String
-  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lessonId         String?
-  lesson           Lesson?       @relation(fields: [lessonId], references: [id])
-  
-  title            String        
-  whatDidYouTry    String        @db.Text
-  stuckMinutes     Int           @default(20)
-  status           RequestStatus @default(OPEN)
-  
+  id           String  @id @default(uuid())
+  ticketNumber Int     @default(autoincrement())
+  userId       String
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId     String?
+  lesson       Lesson? @relation(fields: [lessonId], references: [id])
+
+  title         String
+  whatDidYouTry String        @db.Text
+  stuckMinutes  Int           @default(20)
+  status        RequestStatus @default(OPEN)
+
   // Cloudinary Screenshot Preview URL
-  previewImageUrl  String?       
-  
+  previewImageUrl String?
+
   assignedMentorId String?
-  assignedMentor   User?         @relation("MentorAssignments", fields: [assignedMentorId], references: [id])
+  assignedMentor   User?   @relation("MentorAssignments", fields: [assignedMentorId], references: [id])
 
-  idempotencyKey   String?       @unique
+  idempotencyKey String? @unique
 
-  replies          HelpReply[]
-  deletedAt        DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  replies   HelpReply[]
+  deletedAt DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@index([status])
   @@index([userId])
@@ -251,19 +251,19 @@ model HelpRequest {
 }
 
 model HelpReply {
-  id           String      @id @default(uuid())
-  requestId    String
-  request      HelpRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  content      String      @db.Text
-  codeSnippet  String?     @db.Text
-  isSolution   Boolean     @default(false)
-  likesCount   Int         @default(0)
-  
-  deletedAt    DateTime?
-  createdAt    DateTime    @default(now())
+  id        String      @id @default(uuid())
+  requestId String
+  request   HelpRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  content     String  @db.Text
+  codeSnippet String? @db.Text
+  isSolution  Boolean @default(false)
+  likesCount  Int     @default(0)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([requestId])
   @@index([userId])
@@ -272,25 +272,25 @@ model HelpReply {
 // 4. SUBMISSIONS & MENTOR CERTIFICATIONS
 
 model Submission {
-  id           String              @id @default(uuid())
-  userId       String
-  lessonId     String
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lesson       Lesson              @relation(fields: [lessonId], references: [id])
-  
-  // Cloudinary Artifact/Image URL or Zip link
-  artifactUrl  String              
-  codeSnippet  String?             @db.Text
-  fileSizeKb   Float?              @default(4.2)
-  versionTag   String              @default("v1.2 Final")
-  status       CertificationStatus @default(PENDING)
+  id       String @id @default(uuid())
+  userId   String
+  lessonId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson   Lesson @relation(fields: [lessonId], references: [id])
 
-  idempotencyKey String?           @unique
+  // Cloudinary Artifact/Image URL or Zip link
+  artifactUrl String
+  codeSnippet String?             @db.Text
+  fileSizeKb  Float?              @default(4.2)
+  versionTag  String              @default("v1.2 Final")
+  status      CertificationStatus @default(PENDING)
+
+  idempotencyKey String? @unique
 
   certification Certification?
-  deletedAt    DateTime?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  deletedAt     DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([userId])
   @@index([lessonId])
@@ -298,22 +298,22 @@ model Submission {
 }
 
 model Certification {
-  id                 String              @id @default(uuid())
-  submissionId       String              @unique
-  submission         Submission          @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  mentorId           String
-  mentor             User                @relation("MentorCertifications", fields: [mentorId], references: [id])
+  id           String     @id @default(uuid())
+  submissionId String     @unique
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  mentorId     String
+  mentor       User       @relation("MentorCertifications", fields: [mentorId], references: [id])
 
-  scoreCompleted     Int                 @default(20)
-  scoreQuality       Int                 @default(18)
-  scoreRealProblem   Int                 @default(19)
-  scorePresentation  Int                 @default(17)
-  scoreParticipation Int                 @default(20)
-  totalScore         Int                 @default(94)
+  scoreCompleted     Int @default(20)
+  scoreQuality       Int @default(18)
+  scoreRealProblem   Int @default(19)
+  scorePresentation  Int @default(17)
+  scoreParticipation Int @default(20)
+  totalScore         Int @default(94)
 
-  notes              String?             @db.Text
-  status             CertificationStatus @default(APPROVED)
-  createdAt          DateTime            @default(now())
+  notes     String?             @db.Text
+  status    CertificationStatus @default(APPROVED)
+  createdAt DateTime            @default(now())
 
   @@index([mentorId])
 }
@@ -321,37 +321,37 @@ model Certification {
 // 5. STUDENT PORTFOLIO & ATTENDANCE
 
 model Project {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  title       String    
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
   description String
-  tag         String    
-  
+  tag         String
+
   // Cloudinary Project Screenshot URL
-  imageUrl    String    
-  
-  liveUrl     String?
-  githubUrl   String?
-  
-  isVerified  Boolean   @default(false)
-  verifiedBy  String?   
-  
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
+  imageUrl String
+
+  liveUrl   String?
+  githubUrl String?
+
+  isVerified Boolean @default(false)
+  verifiedBy String?
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
 
 model TrackMeeting {
-  id          String             @id @default(uuid())
-  trackId     String
-  track       Track              @relation(fields: [trackId], references: [id], onDelete: Cascade)
-  type        MeetingType        
-  date        DateTime
-  records     AttendanceRecord[]
-  createdAt   DateTime           @default(now())
+  id        String             @id @default(uuid())
+  trackId   String
+  track     Track              @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  type      MeetingType
+  date      DateTime
+  records   AttendanceRecord[]
+  createdAt DateTime           @default(now())
 
   @@index([trackId])
 }
