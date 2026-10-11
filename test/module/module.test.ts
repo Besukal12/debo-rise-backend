@@ -1,22 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 
-const { prismaMock } = vi.hoisted(() => ({
-  prismaMock: {
-    user: { findFirst: vi.fn() },
-    track: { findUnique: vi.fn() },
-    module: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-  },
-}));
-
-vi.mock("../../src/config/prisma.js", () => ({ prisma: prismaMock }));
-
 import app from "../../src/app.js";
 import { Prisma } from "../../src/generated/prisma/client.js";
 import { createAccessToken } from "../../src/lib/token.js";
@@ -26,7 +10,9 @@ import {
   moduleListQuerySchema,
   updateModuleSchema,
 } from "../../src/modules/module/module.schema.js";
+import { getPrismaMock } from "../setup.js";
 
+const prismaMock = getPrismaMock();
 const trackId = "b8092df4-ff86-4e0b-96a9-3c6dcc2dfac7";
 const moduleId = "3947b122-242a-4bb2-8b9e-75b331ad832c";
 const anotherModuleId = "aab5a777-5b17-4c7a-83a1-6578061ae6f4";
