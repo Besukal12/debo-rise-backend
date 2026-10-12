@@ -195,13 +195,14 @@ describe("help request HTTP routes", () => {
       request(app).get("/api/help/requests"),
       request(app).post("/api/help/requests").send(helpRequestInput),
       request(app).get(`/api/help/requests/${requestId}`),
+      request(app).get(`/api/help/requests/${requestId}/replies`),
       request(app)
         .post(`/api/help/requests/${requestId}/replies`)
         .send(replyInput),
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([
-      401, 401, 401, 401,
+      401, 401, 401, 401, 401,
     ]);
   });
 
@@ -301,6 +302,36 @@ describe("help request HTTP routes", () => {
             verifiedBy: { select: { id: true, fullName: true } },
           },
         },
+      },
+    });
+  });
+
+  it("returns request replies from the dedicated replies endpoint", async () => {
+    const savedReply = {
+      id: replyId,
+      requestId,
+      userId: mentorId,
+      content: "Check the component export.",
+      imageUrl: null,
+      isSolution: true,
+      verifiedById: mentorId,
+    };
+    prismaMock.helpReply.findMany.mockResolvedValue([savedReply]);
+
+    const response = await request(app)
+      .get(`/api/help/requests/${requestId}/replies`)
+      .set("Authorization", bearerToken());
+
+    expect(response.status).toBe(200);
+    expect(response.body.replies).toEqual([savedReply]);
+    expect(prismaMock.helpReply.findMany).toHaveBeenCalledWith({
+      where: { requestId, deletedAt: null },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      include: {
+        user: {
+          select: { id: true, fullName: true, avatarUrl: true, role: true },
+        },
+        verifiedBy: { select: { id: true, fullName: true } },
       },
     });
   });

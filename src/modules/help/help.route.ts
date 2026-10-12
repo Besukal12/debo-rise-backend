@@ -7,6 +7,7 @@ import {
   CreateHelpReply,
   CreateHelpRequest,
   GetHelpRequest,
+  ListHelpReplies,
   ListHelpRequests,
   UploadReplyImage,
   UploadRequestImage,
@@ -23,6 +24,7 @@ const imageBody = express.raw({
 
 router.get("/requests", ...access, ListHelpRequests);
 router.post("/requests", ...access, CreateHelpRequest);
+router.get("/requests/:requestId/replies", ...access, ListHelpReplies);
 router.get("/requests/:requestId", ...access, GetHelpRequest);
 router.post("/requests/:requestId/replies", ...access, CreateHelpReply);
 router.post("/requests/:requestId/solution", ...access, VerifyHelpReply);

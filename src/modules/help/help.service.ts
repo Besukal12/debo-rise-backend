@@ -131,6 +131,24 @@ export async function getHelpRequest(
   return helpRequest;
 }
 
+export async function listHelpReplies(
+  requestId: string,
+  userId: string,
+  role: Role,
+) {
+  await findAccessibleRequest(requestId, userId, role);
+  return prisma.helpReply.findMany({
+    where: { requestId, deletedAt: null },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    include: {
+      user: {
+        select: { id: true, fullName: true, avatarUrl: true, role: true },
+      },
+      verifiedBy: { select: { id: true, fullName: true } },
+    },
+  });
+}
+
 export async function createHelpReply(
   requestId: string,
   userId: string,

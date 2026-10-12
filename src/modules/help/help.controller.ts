@@ -20,6 +20,7 @@ import {
   createHelpReply,
   createHelpRequest,
   getHelpRequest,
+  listHelpReplies,
   listHelpRequests,
   verifyHelpReply,
 } from "./help.service.js";
@@ -68,6 +69,18 @@ export async function GetHelpRequest(req: Request, res: Response) {
     auth.role,
   );
   res.status(200).json({ request: helpRequest });
+}
+
+export async function ListHelpReplies(req: Request, res: Response) {
+  const parsed = helpRequestIdSchema.safeParse(req.params);
+  if (!parsed.success) throw validationError(parsed.error.issues);
+  const auth = requireAuth(req);
+  const replies = await listHelpReplies(
+    parsed.data.requestId,
+    auth.userId,
+    auth.role,
+  );
+  res.status(200).json({ replies });
 }
 
 export async function CreateHelpReply(req: Request, res: Response) {
