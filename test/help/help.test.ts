@@ -258,6 +258,53 @@ describe("help request HTTP routes", () => {
     expect(response.status).toBe(403);
   });
 
+  it("returns a request's saved replies from the authenticated detail endpoint", async () => {
+    const savedReply = {
+      id: replyId,
+      requestId,
+      userId: mentorId,
+      content: "Check the component export.",
+      imageUrl: null,
+      isSolution: true,
+      verifiedById: mentorId,
+    };
+    prismaMock.helpRequest.findUnique
+      .mockResolvedValueOnce({
+        id: requestId,
+        userId: studentId,
+        status: "SOLVED",
+      })
+      .mockResolvedValueOnce({
+        id: requestId,
+        userId: studentId,
+        status: "SOLVED",
+        replies: [savedReply],
+      });
+
+    const response = await request(app)
+      .get(`/api/help/requests/${requestId}`)
+      .set("Authorization", bearerToken());
+
+    expect(response.status).toBe(200);
+    expect(response.body.request.replies).toEqual([savedReply]);
+    expect(prismaMock.helpRequest.findUnique).toHaveBeenNthCalledWith(2, {
+      where: { id: requestId, deletedAt: null },
+      include: {
+        user: { select: { id: true, fullName: true, avatarUrl: true } },
+        replies: {
+          where: { deletedAt: null },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          include: {
+            user: {
+              select: { id: true, fullName: true, avatarUrl: true, role: true },
+            },
+            verifiedBy: { select: { id: true, fullName: true } },
+          },
+        },
+      },
+    });
+  });
+
   it("authorizes request rooms and broadcasts new replies over Socket.IO", async () => {
     const { client, close } = await connectSocket("STUDENT");
     try {
