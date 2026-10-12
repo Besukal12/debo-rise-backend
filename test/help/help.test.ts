@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createServer } from "node:http";
 import request from "supertest";
+import { Server as SocketIOServer } from "socket.io";
+import {
+  io as createSocketClient,
+  type Socket as ClientSocket,
+} from "socket.io-client";
 import app from "../../src/app.js";
 import { createAccessToken } from "../../src/lib/token.js";
 import {
@@ -7,10 +13,7 @@ import {
   createHelpRequestSchema,
   listHelpRequestsSchema,
 } from "../../src/modules/help/help.schema.js";
-import {
-  publishHelpEvent,
-  subscribeToHelpRequest,
-} from "../../src/modules/help/help.events.js";
+import { configureHelpSocket } from "../../src/modules/help/help.socket.js";
 import {
   attachReplyImage,
   attachRequestImage,
@@ -27,6 +30,64 @@ const helpRequestInput = {
   whatDidYouTry: "I checked the browser console.",
 };
 const replyInput = { content: "Check that your component is exported." };
+
+async function connectSocket(
+  role: "STUDENT" | "MENTOR" | "ADMIN",
+  userId = role === "STUDENT" ? studentId : mentorId,
+): Promise<{
+  client: ClientSocket;
+  close: () => Promise<void>;
+}> {
+  const server = createServer(app);
+  const socketServer = new SocketIOServer(server, {
+    cors: { origin: true },
+    transports: ["websocket"],
+  });
+  const detachPublisher = configureHelpSocket(socketServer);
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+
+  const address = server.address();
+  if (!address || typeof address === "string")
+    throw new Error("Test socket server did not bind to a TCP port");
+
+  const client = createSocketClient(`http://127.0.0.1:${address.port}`, {
+    auth: { token: bearerToken(role, userId).slice("Bearer ".length) },
+    transports: ["websocket"],
+    forceNew: true,
+  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      client.once("connect", resolve);
+      client.once("connect_error", reject);
+    });
+  } catch (error) {
+    client.disconnect();
+    detachPublisher();
+    await new Promise<void>((resolve) => socketServer.close(() => resolve()));
+    throw error;
+  }
+
+  return {
+    client,
+    close: async () => {
+      client.disconnect();
+      detachPublisher();
+      await new Promise<void>((resolve) => socketServer.close(() => resolve()));
+    },
+  };
+}
+
+function joinHelpRequest(client: ClientSocket) {
+  return new Promise<{ ok: boolean; error?: string }>((resolve) => {
+    client.emit("help:request:join", { requestId }, resolve);
+  });
+}
+
+function joinHelpQueue(client: ClientSocket) {
+  return new Promise<{ ok: boolean; error?: string }>((resolve) => {
+    client.emit("help:queue:join", resolve);
+  });
+}
 
 function bearerToken(
   role: "STUDENT" | "MENTOR" | "ADMIN" = "STUDENT",
@@ -144,28 +205,34 @@ describe("help request HTTP routes", () => {
     ]);
   });
 
-  it("creates a request and publishes its real-time event", async () => {
-    const onEvent = vi.fn();
-    const unsubscribe = subscribeToHelpRequest(requestId, onEvent);
+  it("notifies authenticated help-queue subscribers when a request is created", async () => {
+    const { client, close } = await connectSocket("MENTOR");
+    try {
+      expect(await joinHelpQueue(client)).toEqual({ ok: true });
+      const requestCreated = new Promise<unknown>((resolve) =>
+        client.once("request.created", resolve),
+      );
 
-    const response = await request(app)
-      .post("/api/help/requests")
-      .set("Authorization", bearerToken())
-      .send(helpRequestInput);
+      const response = await request(app)
+        .post("/api/help/requests")
+        .set("Authorization", bearerToken())
+        .send(helpRequestInput);
 
-    expect(response.status).toBe(201);
-    expect(response.body.request.id).toBe(requestId);
-    expect(prismaMock.helpRequest.create).toHaveBeenCalledWith({
-      data: { ...helpRequestInput, userId: studentId },
-      include: {
-        user: { select: { id: true, fullName: true, avatarUrl: true } },
-      },
-    });
-    expect(onEvent).toHaveBeenCalledWith({
-      type: "request.created",
-      request: expect.objectContaining({ id: requestId }),
-    });
-    unsubscribe();
+      expect(response.status).toBe(201);
+      expect(response.body.request.id).toBe(requestId);
+      expect(prismaMock.helpRequest.create).toHaveBeenCalledWith({
+        data: { ...helpRequestInput, userId: studentId },
+        include: {
+          user: { select: { id: true, fullName: true, avatarUrl: true } },
+        },
+      });
+      expect(await requestCreated).toMatchObject({
+        type: "request.created",
+        request: { id: requestId },
+      });
+    } finally {
+      await close();
+    }
   });
 
   it("restricts student lists to their own requests", async () => {
@@ -191,41 +258,70 @@ describe("help request HTTP routes", () => {
     expect(response.status).toBe(403);
   });
 
-  it("creates replies and publishes them to the request stream", async () => {
-    const onEvent = vi.fn();
-    const unsubscribe = subscribeToHelpRequest(requestId, onEvent);
+  it("authorizes request rooms and broadcasts new replies over Socket.IO", async () => {
+    const { client, close } = await connectSocket("STUDENT");
+    try {
+      expect(await joinHelpRequest(client)).toEqual({ ok: true });
+      const replyCreated = new Promise<unknown>((resolve) =>
+        client.once("reply.created", resolve),
+      );
 
-    const response = await request(app)
-      .post(`/api/help/requests/${requestId}/replies`)
-      .set("Authorization", bearerToken())
-      .send(replyInput);
+      const response = await request(app)
+        .post(`/api/help/requests/${requestId}/replies`)
+        .set("Authorization", bearerToken())
+        .send(replyInput);
 
-    expect(response.status).toBe(201);
-    expect(response.body.reply.id).toBe(replyId);
-    expect(onEvent).toHaveBeenCalledWith({
-      type: "reply.created",
-      reply: expect.objectContaining({ id: replyId }),
-    });
-    unsubscribe();
+      expect(response.status).toBe(201);
+      expect(response.body.reply.id).toBe(replyId);
+      expect(await replyCreated).toMatchObject({
+        type: "reply.created",
+        reply: { id: replyId },
+      });
+    } finally {
+      await close();
+    }
   });
 
-  it("allows mentors to verify a reply and broadcasts the verified answer", async () => {
-    const onEvent = vi.fn();
-    const unsubscribe = subscribeToHelpRequest(requestId, onEvent);
+  it("denies joining another student's request room and restricts the help queue", async () => {
+    const otherStudentId = "aab5a777-5b17-4c7a-83a1-6578061ae6f4";
+    const { client, close } = await connectSocket("STUDENT", otherStudentId);
+    try {
+      expect(await joinHelpRequest(client)).toMatchObject({
+        ok: false,
+        error: "You cannot access this help request",
+      });
+      expect(await joinHelpQueue(client)).toMatchObject({
+        ok: false,
+        error: "You cannot access the help queue",
+      });
+    } finally {
+      await close();
+    }
+  });
 
-    const response = await request(app)
-      .post(`/api/help/requests/${requestId}/solution`)
-      .set("Authorization", bearerToken("MENTOR"))
-      .send({ replyId });
+  it("notifies request-room subscribers when a mentor verifies an answer", async () => {
+    const { client, close } = await connectSocket("STUDENT");
+    try {
+      expect(await joinHelpRequest(client)).toEqual({ ok: true });
+      const solutionVerified = new Promise<unknown>((resolve) =>
+        client.once("reply.solution", resolve),
+      );
 
-    expect(response.status).toBe(200);
-    expect(response.body.reply.isSolution).toBe(true);
-    expect(prismaMock.$transaction).toHaveBeenCalledOnce();
-    expect(onEvent).toHaveBeenCalledWith({
-      type: "reply.solution",
-      reply: expect.objectContaining({ id: replyId, isSolution: true }),
-    });
-    unsubscribe();
+      const response = await request(app)
+        .post(`/api/help/requests/${requestId}/solution`)
+        .set("Authorization", bearerToken("MENTOR"))
+        .send({ replyId });
+
+      expect(response.status).toBe(200);
+      expect(response.body.reply.isSolution).toBe(true);
+      expect(prismaMock.$transaction).toHaveBeenCalledOnce();
+      expect(await solutionVerified).toMatchObject({
+        type: "reply.solution",
+        reply: { id: replyId, isSolution: true },
+      });
+    } finally {
+      await close();
+    }
   });
 
   it("prevents students from verifying answers", async () => {
@@ -259,98 +355,46 @@ describe("help request HTTP routes", () => {
     expect(response.status).toBe(413);
   });
 
-  it("streams live help events over the authenticated SSE endpoint", async () => {
-    const server = app.listen(0);
-    const controller = new AbortController();
+  it("persists and broadcasts request and reply images over Socket.IO", async () => {
+    const { client, close } = await connectSocket("STUDENT");
     try {
-      const address = server.address();
-      if (!address || typeof address === "string")
-        throw new Error("Test server did not bind to a TCP port");
-      const response = await fetch(
-        `http://127.0.0.1:${address.port}/api/help/requests/${requestId}/events`,
-        {
-          headers: { Authorization: bearerToken() },
-          signal: controller.signal,
-        },
+      expect(await joinHelpRequest(client)).toEqual({ ok: true });
+      const requestImageEvent = new Promise<unknown>((resolve) =>
+        client.once("request.image", resolve),
       );
-      expect(response.headers.get("content-type")).toContain("text/event-stream");
-
-      const reader = response.body?.getReader();
-      expect(reader).toBeDefined();
-      const decoder = new TextDecoder();
-      const connected = await reader!.read();
-      expect(decoder.decode(connected.value)).toContain(": connected");
-
-      publishHelpEvent(requestId, {
-        type: "reply.created",
-        reply: { id: replyId },
-      });
-      const update = await reader!.read();
-      expect(decoder.decode(update.value)).toContain(
-        'event: reply.created\ndata: {"type":"reply.created","reply":{"id":"3947b122-242a-4bb2-8b9e-75b331ad832c"}}',
+      const replyImageEvent = new Promise<unknown>((resolve) =>
+        client.once("reply.image", resolve),
       );
-      await reader!.cancel();
-    } finally {
-      controller.abort();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
-    }
-  });
-
-  it("persists request and reply images before broadcasting them", async () => {
-    const onEvent = vi.fn();
-    const unsubscribe = subscribeToHelpRequest(requestId, onEvent);
     const requestImageUrl = "https://example.test/request.png";
     const replyImageUrl = "https://example.test/reply.png";
 
-    await attachRequestImage(
-      requestId,
-      studentId,
-      "STUDENT",
-      requestImageUrl,
-    );
-    await attachReplyImage(replyId, studentId, "STUDENT", replyImageUrl);
+      await attachRequestImage(
+        requestId,
+        studentId,
+        "STUDENT",
+        requestImageUrl,
+      );
+      await attachReplyImage(replyId, studentId, "STUDENT", replyImageUrl);
 
-    expect(prismaMock.helpRequest.update).toHaveBeenCalledWith({
-      where: { id: requestId },
-      data: { previewImageUrl: requestImageUrl },
-    });
-    expect(prismaMock.helpReply.update).toHaveBeenCalledWith({
-      where: { id: replyId },
-      data: { imageUrl: replyImageUrl },
-    });
-    expect(onEvent).toHaveBeenNthCalledWith(1, {
-      type: "request.image",
-      requestId,
-      imageUrl: requestImageUrl,
-    });
-    expect(onEvent).toHaveBeenNthCalledWith(2, {
-      type: "reply.image",
-      replyId,
-      requestId,
-      imageUrl: replyImageUrl,
-    });
-    unsubscribe();
-  });
-
-  it("only sends a published event to subscribers of that request", () => {
-    const received: unknown[] = [];
-    const unsubscribe = subscribeToHelpRequest(requestId, (event) =>
-      received.push(event),
-    );
-
-    publishHelpEvent("different-request", {
-      type: "request.image",
-      requestId: "different-request",
-      imageUrl: "https://example.test/image.png",
-    });
-    publishHelpEvent(requestId, {
-      type: "request.image",
-      requestId,
-      imageUrl: "https://example.test/image.png",
-    });
-
-    expect(received).toHaveLength(1);
-    expect(received[0]).toMatchObject({ type: "request.image", requestId });
-    unsubscribe();
+      expect(prismaMock.helpRequest.update).toHaveBeenCalledWith({
+        where: { id: requestId },
+        data: { previewImageUrl: requestImageUrl },
+      });
+      expect(prismaMock.helpReply.update).toHaveBeenCalledWith({
+        where: { id: replyId },
+        data: { imageUrl: replyImageUrl },
+      });
+      expect(await requestImageEvent).toMatchObject({
+        type: "request.image",
+        imageUrl: requestImageUrl,
+      });
+      expect(await replyImageEvent).toMatchObject({
+        type: "reply.image",
+        replyId,
+        imageUrl: replyImageUrl,
+      });
+    } finally {
+      await close();
+    }
   });
 });

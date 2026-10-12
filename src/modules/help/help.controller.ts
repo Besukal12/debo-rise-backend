@@ -27,7 +27,6 @@ import {
   parseHelpImage,
   uploadHelpImage,
 } from "./help.upload.js";
-import { subscribeToHelpRequest } from "./help.events.js";
 
 function validationError(issues: { path: PropertyKey[]; message: string }[]) {
   return new BadRequestError(
@@ -151,30 +150,4 @@ export async function UploadReplyImage(req: Request, res: Response) {
     imageUrl,
   );
   res.status(200).json({ reply });
-}
-
-export async function StreamHelpRequestEvents(req: Request, res: Response) {
-  const parsed = helpRequestIdSchema.safeParse(req.params);
-  if (!parsed.success) throw validationError(parsed.error.issues);
-  const auth = requireAuth(req);
-  await getHelpRequest(parsed.data.requestId, auth.userId, auth.role);
-
-  res.status(200);
-  res.set({
-    "Cache-Control": "no-cache, no-transform",
-    Connection: "keep-alive",
-    "Content-Type": "text/event-stream",
-    "X-Accel-Buffering": "no",
-  });
-  res.flushHeaders();
-  res.write(": connected\n\n");
-
-  const unsubscribe = subscribeToHelpRequest(parsed.data.requestId, (event) => {
-    res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
-  });
-  const heartbeat = setInterval(() => res.write(": keep-alive\n\n"), 25_000);
-  res.on("close", () => {
-    clearInterval(heartbeat);
-    unsubscribe();
-  });
 }

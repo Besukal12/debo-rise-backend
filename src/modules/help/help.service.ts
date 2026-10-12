@@ -15,7 +15,11 @@ import type {
 
 const staffRoles: Role[] = ["MENTOR", "SUPPORTER", "CIRCLE_LEAD", "ADMIN"];
 
-function canAccessRequest(userId: string, role: Role, ownerId: string): boolean {
+function canAccessRequest(
+  userId: string,
+  role: Role,
+  ownerId: string,
+): boolean {
   return userId === ownerId || staffRoles.includes(role);
 }
 
@@ -34,6 +38,14 @@ async function findAccessibleRequest(
     throw new ForbiddenError("You cannot access this help request");
 
   return helpRequest;
+}
+
+export async function assertCanAccessHelpRequest(
+  requestId: string,
+  userId: string,
+  role: Role,
+): Promise<void> {
+  await findAccessibleRequest(requestId, userId, role);
 }
 
 export async function createHelpRequest(
@@ -89,7 +101,7 @@ export async function listHelpRequests(
 
   return {
     requests: items,
-    nextCursor: hasMore ? items[items.length - 1]?.id ?? null : null,
+    nextCursor: hasMore ? (items[items.length - 1]?.id ?? null) : null,
   };
 }
 
