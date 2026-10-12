@@ -12,6 +12,18 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
   WEB_ORIGIN: z.url().optional(),
+  CLOUDINARY_CLOUD_NAME: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  CLOUDINARY_API_KEY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  CLOUDINARY_API_SECRET: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
   LOG_DIR: z.string().default("./logs"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });

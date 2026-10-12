@@ -8,12 +8,13 @@ import cookieParser from "cookie-parser";
 import { AppError } from "./core/AppError.js";
 import Logger from "./core/Logger.js";
 import { env } from "./config/env.js";
-import { InternalError } from "./core/CustomError.js";
+import { InternalError, PayloadTooLargeError } from "./core/CustomError.js";
 import authRoute from "./modules/auth/auth.route.js";
 import moduleRoute from "./modules/module/module.route.js";
 import trackRoute from "./modules/track/track.route.js";
 import lessonRoute from "./modules/lesson/lesson.route.js";
 import meetingRoute from "./modules/meeting/meeting.route.js";
+import helpRoute from "./modules/help/help.route.js";
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use("/api/tracks", trackRoute);
 app.use("/api/modules", moduleRoute);
 app.use("/api/lessons", lessonRoute);
 app.use("/api/meetings", meetingRoute);
+app.use("/api/help", helpRoute);
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof AppError) {
@@ -45,6 +47,15 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
       if (err.stack) Logger.error(err.stack);
     }
     AppError.handle(err, res);
+    return;
+  }
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    "type" in err &&
+    err.type === "entity.too.large"
+  ) {
+    AppError.handle(new PayloadTooLargeError(), res);
     return;
   }
   Logger.error("Unhandled error " + req.method + " " + req.originalUrl, err);

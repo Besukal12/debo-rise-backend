@@ -126,6 +126,7 @@ model User {
   certifications   Certification[]      @relation("MentorCertifications")
   attendanceLogs   AttendanceRecord[]   @relation("StudentAttendance")
   markedAttendance AttendanceRecord[]   @relation("SupporterAttendance")
+  verifiedHelpReplies HelpReply[]     @relation("VerifiedHelpReplies")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -257,10 +258,14 @@ model HelpReply {
   userId    String
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  content     String  @db.Text
-  codeSnippet String? @db.Text
-  isSolution  Boolean @default(false)
-  likesCount  Int     @default(0)
+  content      String  @db.Text
+  codeSnippet  String? @db.Text
+  imageUrl     String?
+  isSolution   Boolean @default(false)
+  verifiedById String?
+  verifiedBy   User?    @relation("VerifiedHelpReplies", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedAt   DateTime?
+  likesCount   Int      @default(0)
 
   deletedAt DateTime?
   createdAt DateTime  @default(now())

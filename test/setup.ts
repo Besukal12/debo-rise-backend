@@ -28,6 +28,20 @@ const mockState = vi.hoisted(() => ({
       findMany: vi.fn(),
       upsert: vi.fn(),
     },
+    helpRequest: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+    helpReply: {
+      create: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    $transaction: vi.fn(),
     trackMeeting: {
       create: vi.fn(),
       findMany: vi.fn(),

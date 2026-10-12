@@ -1,0 +1,9 @@
+ALTER TABLE "HelpReply"
+ADD COLUMN "imageUrl" TEXT,
+ADD COLUMN "verifiedById" TEXT,
+ADD COLUMN "verifiedAt" TIMESTAMP(3);
+
+ALTER TABLE "HelpReply"
+ADD CONSTRAINT "HelpReply_verifiedById_fkey"
+FOREIGN KEY ("verifiedById") REFERENCES "User"("id")
+ON DELETE SET NULL ON UPDATE CASCADE;
