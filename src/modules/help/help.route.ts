@@ -32,11 +32,6 @@ router.post(
   imageBody,
   UploadRequestImage,
 );
-router.post(
-  "/replies/:replyId/image",
-  ...access,
-  imageBody,
-  UploadReplyImage,
-);
+router.post("/replies/:replyId/image", ...access, imageBody, UploadReplyImage);
 
 export default router;

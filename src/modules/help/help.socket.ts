@@ -53,9 +53,7 @@ function sendJoinError(
   acknowledge({
     ok: false,
     error:
-      error instanceof AppError
-        ? error.message
-        : "Could not join help request",
+      error instanceof AppError ? error.message : "Could not join help request",
   });
 }
 

@@ -23,10 +23,7 @@ import {
   listHelpRequests,
   verifyHelpReply,
 } from "./help.service.js";
-import {
-  parseHelpImage,
-  uploadHelpImage,
-} from "./help.upload.js";
+import { parseHelpImage, uploadHelpImage } from "./help.upload.js";
 
 function validationError(issues: { path: PropertyKey[]; message: string }[]) {
   return new BadRequestError(
@@ -133,11 +130,7 @@ export async function UploadReplyImage(req: Request, res: Response) {
   if (!parsed.success) throw validationError(parsed.error.issues);
   const auth = requireAuth(req);
   const image = parseHelpImage(req);
-  await assertCanAttachReplyImage(
-    parsed.data.replyId,
-    auth.userId,
-    auth.role,
-  );
+  await assertCanAttachReplyImage(parsed.data.replyId, auth.userId, auth.role);
   const imageUrl = await uploadHelpImage(
     image.buffer,
     image.contentType,

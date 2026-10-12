@@ -16,11 +16,8 @@ function sha1(value: string): string {
 }
 
 function getCloudinaryConfig() {
-  const {
-    CLOUDINARY_CLOUD_NAME,
-    CLOUDINARY_API_KEY,
-    CLOUDINARY_API_SECRET,
-  } = env;
+  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } =
+    env;
   if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET)
     throw new ServiceUnavailableError("Image uploads are not configured");
   return {
@@ -30,9 +27,10 @@ function getCloudinaryConfig() {
   };
 }
 
-export function parseHelpImage(
-  req: Request,
-): { buffer: Buffer; contentType: string } {
+export function parseHelpImage(req: Request): {
+  buffer: Buffer;
+  contentType: string;
+} {
   const contentType = req.get("content-type")?.split(";")[0]?.toLowerCase();
   if (!contentType || !allowedImageTypes.has(contentType))
     throw new BadRequestError("Upload a JPEG, PNG, or WebP image");
@@ -50,7 +48,9 @@ export function parseHelpImage(
   const isPng =
     contentType === "image/png" &&
     buffer.length >= 8 &&
-    buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    buffer
+      .subarray(0, 8)
+      .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
   const isWebp =
     contentType === "image/webp" &&
     buffer.length >= 12 &&

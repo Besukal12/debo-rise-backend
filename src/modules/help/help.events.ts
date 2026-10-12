@@ -4,7 +4,12 @@ export type HelpEvent =
   | { type: "request.created"; request: unknown }
   | { type: "request.image"; requestId: string; imageUrl: string }
   | { type: "reply.created"; reply: unknown }
-  | { type: "reply.image"; replyId: string; requestId: string; imageUrl: string }
+  | {
+      type: "reply.image";
+      replyId: string;
+      requestId: string;
+      imageUrl: string;
+    }
   | { type: "reply.solution"; reply: unknown };
 
 export const HELP_QUEUE_ROOM = "help:queue";

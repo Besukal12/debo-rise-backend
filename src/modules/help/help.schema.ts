@@ -17,13 +17,9 @@ export const listHelpRequestsSchema = z
   })
   .strict();
 
-export const helpRequestIdSchema = z
-  .object({ requestId: z.uuid() })
-  .strict();
+export const helpRequestIdSchema = z.object({ requestId: z.uuid() }).strict();
 
-export const helpReplyIdSchema = z
-  .object({ replyId: z.uuid() })
-  .strict();
+export const helpReplyIdSchema = z.object({ replyId: z.uuid() }).strict();
 
 export const createHelpReplySchema = z
   .object({
@@ -32,9 +28,7 @@ export const createHelpReplySchema = z
   })
   .strict();
 
-export const verifyHelpReplySchema = z
-  .object({ replyId: z.uuid() })
-  .strict();
+export const verifyHelpReplySchema = z.object({ replyId: z.uuid() }).strict();
 
 export type CreateHelpRequestInput = z.infer<typeof createHelpRequestSchema>;
 export type ListHelpRequestsInput = z.infer<typeof listHelpRequestsSchema>;
