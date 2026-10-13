@@ -31,7 +31,12 @@ export function parseHelpImage(req: Request): {
   buffer: Buffer;
   contentType: string;
 } {
-  const contentType = req.get("content-type")?.split(";")[0]?.toLowerCase();
+  const receivedContentType = req
+    .get("content-type")
+    ?.split(";")[0]
+    ?.toLowerCase();
+  const contentType =
+    receivedContentType === "image/jpg" ? "image/jpeg" : receivedContentType;
   if (!contentType || !allowedImageTypes.has(contentType))
     throw new BadRequestError("Upload a JPEG, PNG, or WebP image");
   if (!Buffer.isBuffer(req.body) || req.body.length === 0)

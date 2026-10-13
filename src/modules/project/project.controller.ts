@@ -3,6 +3,7 @@ import {
   BadRequestError,
   UnauthorizedError,
 } from "../../core/CustomError.js";
+import { parseHelpImage, uploadHelpImage } from "../help/help.upload.js";
 import {
   createProjectSchema,
   projectIdSchema,
@@ -39,6 +40,20 @@ export async function CreateProject(
 
   const project = await createProject(req.auth.userId, parsed.data);
   res.status(201).json({ project });
+}
+
+export async function UploadProjectImage(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) throw new UnauthorizedError("Authentication required");
+  const image = parseHelpImage(req);
+  const imageUrl = await uploadHelpImage(
+    image.buffer,
+    image.contentType,
+    `debo-rise/projects/${req.auth.userId}`,
+  );
+  res.status(201).json({ imageUrl });
 }
 
 export async function ListMyProjects(

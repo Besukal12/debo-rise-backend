@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+import { uploadHelpImage } from "../../src/modules/help/help.upload.js";
 import { Prisma } from "../../src/generated/prisma/client.js";
 import app from "../../src/app.js";
 import { createAccessToken } from "../../src/lib/token.js";
@@ -17,6 +18,17 @@ import {
   updateMyProject,
 } from "../../src/modules/project/project.service.js";
 import { getPrismaMock } from "../setup.js";
+
+vi.mock("../../src/modules/help/help.upload.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../src/modules/help/help.upload.js")>();
+  return {
+    ...actual,
+    uploadHelpImage: vi.fn().mockResolvedValue(
+      "https://images.example.com/uploaded-project.jpg",
+    ),
+  };
+});
 
 const prismaMock = getPrismaMock();
 const userId = "b8092df4-ff86-4e0b-96a9-3c6dcc2dfac7";
@@ -198,6 +210,9 @@ describe("project service", () => {
 describe("project HTTP routes", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(uploadHelpImage).mockResolvedValue(
+      "https://images.example.com/uploaded-project.jpg",
+    );
     prismaMock.project.create.mockResolvedValue(projectRecord);
     prismaMock.project.findMany.mockResolvedValue([projectRecord]);
     prismaMock.project.findFirst.mockResolvedValue(projectRecord);
@@ -209,13 +224,44 @@ describe("project HTTP routes", () => {
       request(app).get("/api/projects"),
       request(app).get(`/api/projects/${projectId}`),
       request(app).post("/api/projects").send(projectBody),
+      request(app).post("/api/projects/image"),
       request(app).patch(`/api/projects/${projectId}`).send({ title: "Updated" }),
       request(app).delete(`/api/projects/${projectId}`),
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([
-      401, 401, 401, 401, 401,
+      401, 401, 401, 401, 401, 401,
     ]);
+  });
+
+  it("uploads a project JPEG for the authenticated user's project", async () => {
+    const image = Buffer.from([0xff, 0xd8, 0xff, 0x00]);
+    const response = await request(app)
+      .post("/api/projects/image")
+      .set("Authorization", bearerToken())
+      .set("Content-Type", "image/jpg")
+      .send(image);
+
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual({
+      imageUrl: "https://images.example.com/uploaded-project.jpg",
+    });
+    expect(uploadHelpImage).toHaveBeenCalledWith(
+      image,
+      "image/jpeg",
+      `debo-rise/projects/${userId}`,
+    );
+  });
+
+  it("rejects project uploads with invalid image content", async () => {
+    const response = await request(app)
+      .post("/api/projects/image")
+      .set("Authorization", bearerToken())
+      .set("Content-Type", "image/jpg")
+      .send(Buffer.from("not a JPEG"));
+
+    expect(response.status).toBe(400);
+    expect(uploadHelpImage).not.toHaveBeenCalled();
   });
 
   it("creates projects using the authenticated user, not client ownership", async () => {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createServer } from "node:http";
 import request from "supertest";
+import { uploadHelpImage } from "../../src/modules/help/help.upload.js";
 import { Server as SocketIOServer } from "socket.io";
 import {
   io as createSocketClient,
@@ -14,11 +15,23 @@ import {
   listHelpRequestsSchema,
 } from "../../src/modules/help/help.schema.js";
 import { configureHelpSocket } from "../../src/modules/help/help.socket.js";
+import { parseHelpImage } from "../../src/modules/help/help.upload.js";
 import {
   attachReplyImage,
   attachRequestImage,
 } from "../../src/modules/help/help.service.js";
 import { getPrismaMock } from "../setup.js";
+
+vi.mock("../../src/modules/help/help.upload.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../src/modules/help/help.upload.js")>();
+  return {
+    ...actual,
+    uploadHelpImage: vi.fn().mockResolvedValue(
+      "https://example.test/uploaded-help.jpg",
+    ),
+  };
+});
 
 const prismaMock = getPrismaMock();
 const requestId = "b8092df4-ff86-4e0b-96a9-3c6dcc2dfac7";
@@ -130,11 +143,27 @@ describe("help request validation", () => {
       false,
     );
   });
+
+  it("accepts the image/jpg alias and normalizes it to image/jpeg", () => {
+    const buffer = Buffer.from([0xff, 0xd8, 0xff, 0x00]);
+    const req = {
+      get: () => "image/jpg",
+      body: buffer,
+    } as unknown as import("express").Request;
+
+    expect(parseHelpImage(req)).toEqual({
+      buffer,
+      contentType: "image/jpeg",
+    });
+  });
 });
 
 describe("help request HTTP routes", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(uploadHelpImage).mockResolvedValue(
+      "https://example.test/uploaded-help.jpg",
+    );
     prismaMock.helpRequest.findUnique.mockResolvedValue({
       id: requestId,
       userId: studentId,
@@ -421,6 +450,25 @@ describe("help request HTTP routes", () => {
 
     expect(response.status).toBe(400);
     expect(prismaMock.helpRequest.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("accepts JPG request images and stores their uploaded URL", async () => {
+    const image = Buffer.from([0xff, 0xd8, 0xff, 0x00]);
+    const response = await request(app)
+      .post(`/api/help/requests/${requestId}/image`)
+      .set("Authorization", bearerToken())
+      .set("Content-Type", "image/jpg")
+      .send(image);
+
+    expect(response.status).toBe(200);
+    expect(response.body.request.previewImageUrl).toBe(
+      "https://example.test/request.png",
+    );
+    expect(uploadHelpImage).toHaveBeenCalledWith(
+      image,
+      "image/jpeg",
+      `debo-rise/help-requests/${requestId}`,
+    );
   });
 
   it("rejects image uploads larger than 5 MB", async () => {
