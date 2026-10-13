@@ -18,7 +18,7 @@ import { maxImageSize } from "./help.upload.js";
 const router = Router();
 const access = [authenticate, requireGuardianConsent()];
 const imageBody = express.raw({
-  type: ["image/jpeg", "image/png", "image/webp"],
+  type: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
   limit: maxImageSize,
 });
 

@@ -15,6 +15,7 @@ import trackRoute from "./modules/track/track.route.js";
 import lessonRoute from "./modules/lesson/lesson.route.js";
 import meetingRoute from "./modules/meeting/meeting.route.js";
 import helpRoute from "./modules/help/help.route.js";
+import projectRoute from "./modules/project/project.route.js";
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use("/api/modules", moduleRoute);
 app.use("/api/lessons", lessonRoute);
 app.use("/api/meetings", meetingRoute);
 app.use("/api/help", helpRoute);
+app.use("/api/projects", projectRoute);
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof AppError) {
