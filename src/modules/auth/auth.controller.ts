@@ -13,7 +13,9 @@ import {
   changePasswordSchema,
   registerSchema,
   loginSchema,
+  updateProfileSchema,
 } from "./auth.schema.js";
+import { parseHelpImage, uploadHelpImage } from "../help/help.upload.js";
 import {
   assertTrustedOrigin,
   validationError,
@@ -21,6 +23,27 @@ import {
   refreshCookieName,
   clearRefreshCookie,
 } from "./auth.service.js";
+
+const currentUserSelect = {
+  id: true,
+  email: true,
+  fullName: true,
+  role: true,
+  age: true,
+  ageGroup: true,
+  educationLevel: true,
+  workStatus: true,
+  avatarUrl: true,
+  schoolOrOrg: true,
+  location: true,
+  language: true,
+  dailyReminders: true,
+  helpNotify: true,
+  isPrivate: true,
+  trackId: true,
+  parentConsent: true,
+  createdAt: true,
+} satisfies Prisma.UserSelect;
 
 export async function RegisterUser(req: Request, res: Response): Promise<void> {
   assertTrustedOrigin(req);
@@ -269,19 +292,46 @@ export async function GetCurrentUser(
 
   const user = await prisma.user.findFirst({
     where: { id: req.auth.userId, deletedAt: null },
-    select: {
-      id: true,
-      email: true,
-      fullName: true,
-      role: true,
-      ageGroup: true,
-      trackId: true,
-      parentConsent: true,
-      createdAt: true,
-    },
+    select: currentUserSelect,
   });
 
   if (!user) throw new UnauthorizedError("Authentication required");
 
+  res.status(200).json({ user });
+}
+
+export async function UpdateCurrentUser(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) throw new UnauthorizedError("Authentication required");
+  const parsed = updateProfileSchema.safeParse(req.body);
+  if (!parsed.success) throw validationError(parsed.error.issues);
+
+  const user = await prisma.user.update({
+    where: { id: req.auth.userId },
+    data: parsed.data,
+    select: currentUserSelect,
+  });
+  res.status(200).json({ user });
+}
+
+export async function UploadCurrentUserAvatar(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) throw new UnauthorizedError("Authentication required");
+  const image = parseHelpImage(req);
+  const avatarUrl = await uploadHelpImage(
+    image.buffer,
+    image.contentType,
+    `debo-rise/avatars/${req.auth.userId}`,
+  );
+
+  const user = await prisma.user.update({
+    where: { id: req.auth.userId },
+    data: { avatarUrl },
+    select: currentUserSelect,
+  });
   res.status(200).json({ user });
 }

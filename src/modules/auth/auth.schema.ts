@@ -20,6 +20,11 @@ const optionalPhoneSchema = z.preprocess(
   blankToUndefined,
   z.string().trim().regex(/^\+?[1-9]\d{6,14}$/, "Enter a valid phone number").optional(),
 );
+const optionalNullableText = (maxLength: number) =>
+  z.preprocess(
+    (value) => (value === "" ? null : value),
+    z.string().trim().max(maxLength).nullable().optional(),
+  );
 
 const educationLevelSchema = z.enum([
   "HIGH_SCHOOL_STUDENT",
@@ -94,6 +99,23 @@ export const changePasswordSchema = z
   .refine((data) => data.currentPassword !== data.newPassword, {
     path: ["newPassword"],
     message: "New password must be different from the current password",
+  });
+
+export const updateProfileSchema = z
+  .object({
+    fullName: nameSchema.optional(),
+    educationLevel: educationLevelSchema.optional(),
+    workStatus: workStatusSchema.optional(),
+    schoolOrOrg: optionalNullableText(150),
+    location: optionalNullableText(100),
+    language: z.enum(["EN", "AM"]).optional(),
+    dailyReminders: z.boolean().optional(),
+    helpNotify: z.boolean().optional(),
+    isPrivate: z.boolean().optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Provide at least one profile field to update",
   });
 
 export const forgotPasswordSchema = z
