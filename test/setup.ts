@@ -2,7 +2,7 @@ import { afterEach, vi } from "vitest";
 
 const mockState = vi.hoisted(() => ({
   prisma: {
-    user: { findFirst: vi.fn() },
+    user: { findFirst: vi.fn(), update: vi.fn() },
     track: {
       create: vi.fn(),
       findMany: vi.fn(),
@@ -46,6 +46,7 @@ const mockState = vi.hoisted(() => ({
       findMany: vi.fn(),
       findFirst: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
     $transaction: vi.fn(),
     trackMeeting: {

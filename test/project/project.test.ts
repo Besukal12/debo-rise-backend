@@ -14,8 +14,10 @@ import {
   createProject,
   deleteMyProject,
   getMyProject,
+  listProjectsForVerification,
   listMyProjects,
   updateMyProject,
+  verifyProject,
 } from "../../src/modules/project/project.service.js";
 import { getPrismaMock } from "../setup.js";
 
@@ -32,6 +34,7 @@ vi.mock("../../src/modules/help/help.upload.js", async (importOriginal) => {
 
 const prismaMock = getPrismaMock();
 const userId = "b8092df4-ff86-4e0b-96a9-3c6dcc2dfac7";
+const mentorId = "55ac5ad2-df82-43b5-9a45-cbd2f0876d21";
 const projectId = "3947b122-242a-4bb2-8b9e-75b331ad832c";
 const projectBody = {
   title: "Accessible budgeting app",
@@ -67,6 +70,16 @@ function bearerToken() {
     parentConsent: true,
   });
   return `Bearer ${createAccessToken(userId)}`;
+}
+
+function mentorBearerToken() {
+  prismaMock.user.findFirst.mockResolvedValue({
+    id: mentorId,
+    role: "MENTOR",
+    ageGroup: "ADULT",
+    parentConsent: true,
+  });
+  return `Bearer ${createAccessToken(mentorId)}`;
 }
 
 function prismaError(code: string) {
@@ -128,6 +141,7 @@ describe("project service", () => {
     prismaMock.project.findMany.mockResolvedValue([projectRecord]);
     prismaMock.project.findFirst.mockResolvedValue(projectRecord);
     prismaMock.project.update.mockResolvedValue(projectRecord);
+    prismaMock.project.updateMany.mockResolvedValue({ count: 1 });
   });
 
   it("creates a project connected to its authenticated owner", async () => {
@@ -160,6 +174,76 @@ describe("project service", () => {
     expect(prismaMock.project.findMany).toHaveBeenCalledWith({
       where: { userId, deletedAt: null },
       orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    });
+  });
+
+  it("lists active unverified projects with limited owner details", async () => {
+    await listProjectsForVerification();
+    expect(prismaMock.project.findMany).toHaveBeenCalledWith({
+      where: { isVerified: false, deletedAt: null },
+      include: {
+        user: { select: { id: true, fullName: true, avatarUrl: true } },
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+  });
+
+  it("verifies an active project and records the reviewing mentor", async () => {
+    const verified = {
+      ...projectRecord,
+      isVerified: true,
+      verifiedBy: mentorId,
+      user: { id: userId, fullName: "Student Name", avatarUrl: null },
+    };
+    prismaMock.project.findFirst
+      .mockResolvedValueOnce(projectRecord)
+      .mockResolvedValueOnce(verified);
+
+    await expect(verifyProject(projectId, mentorId)).resolves.toEqual(verified);
+    expect(prismaMock.project.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: projectId,
+        deletedAt: null,
+        isVerified: false,
+        userId: { not: mentorId },
+      },
+      data: { isVerified: true, verifiedBy: mentorId },
+    });
+  });
+
+  it("rejects missing projects, self-review, and duplicate verification", async () => {
+    prismaMock.project.findFirst.mockResolvedValueOnce(null);
+    await expect(verifyProject(projectId, mentorId)).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Project not found",
+    });
+
+    prismaMock.project.findFirst.mockResolvedValueOnce(projectRecord);
+    await expect(verifyProject(projectId, userId)).rejects.toMatchObject({
+      statusCode: 403,
+      message: "You cannot verify your own project",
+    });
+
+    prismaMock.project.findFirst.mockResolvedValueOnce({
+      ...projectRecord,
+      isVerified: true,
+    });
+    await expect(verifyProject(projectId, mentorId)).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Project has already been verified",
+    });
+    expect(prismaMock.project.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("reports a conflict if a concurrent verification wins", async () => {
+    prismaMock.project.findFirst
+      .mockResolvedValueOnce(projectRecord)
+      .mockResolvedValueOnce({ ...projectRecord, isVerified: true });
+    prismaMock.project.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(verifyProject(projectId, mentorId)).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Project has already been verified",
     });
   });
 
@@ -217,6 +301,7 @@ describe("project HTTP routes", () => {
     prismaMock.project.findMany.mockResolvedValue([projectRecord]);
     prismaMock.project.findFirst.mockResolvedValue(projectRecord);
     prismaMock.project.update.mockResolvedValue(projectRecord);
+    prismaMock.project.updateMany.mockResolvedValue({ count: 1 });
   });
 
   it("requires authentication for all project routes", async () => {
@@ -225,13 +310,61 @@ describe("project HTTP routes", () => {
       request(app).get(`/api/projects/${projectId}`),
       request(app).post("/api/projects").send(projectBody),
       request(app).post("/api/projects/image"),
+      request(app).get("/api/projects/review/pending"),
+      request(app).post(`/api/projects/${projectId}/verify`),
       request(app).patch(`/api/projects/${projectId}`).send({ title: "Updated" }),
       request(app).delete(`/api/projects/${projectId}`),
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([
-      401, 401, 401, 401, 401, 401,
+      401, 401, 401, 401, 401, 401, 401, 401,
     ]);
+  });
+
+  it("restricts project review routes to mentors", async () => {
+    const pendingResponse = await request(app)
+      .get("/api/projects/review/pending")
+      .set("Authorization", bearerToken());
+    const verifyResponse = await request(app)
+      .post(`/api/projects/${projectId}/verify`)
+      .set("Authorization", bearerToken());
+
+    expect(pendingResponse.status).toBe(403);
+    expect(verifyResponse.status).toBe(403);
+    expect(prismaMock.project.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.project.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("allows mentors to list pending projects and verify a project", async () => {
+    const pendingProject = {
+      ...projectRecord,
+      user: { id: userId, fullName: "Student Name", avatarUrl: null },
+    };
+    const verifiedProject = {
+      ...pendingProject,
+      isVerified: true,
+      verifiedBy: mentorId,
+    };
+    prismaMock.project.findMany.mockResolvedValueOnce([pendingProject]);
+    prismaMock.project.findFirst
+      .mockResolvedValueOnce(projectRecord)
+      .mockResolvedValueOnce(verifiedProject);
+
+    const pendingResponse = await request(app)
+      .get("/api/projects/review/pending")
+      .set("Authorization", mentorBearerToken());
+    expect(pendingResponse.status).toBe(200);
+    expect(pendingResponse.body.projects).toEqual([pendingProject]);
+
+    const verifyResponse = await request(app)
+      .post(`/api/projects/${projectId}/verify`)
+      .set("Authorization", mentorBearerToken());
+    expect(verifyResponse.status).toBe(200);
+    expect(verifyResponse.body.project).toMatchObject({
+      id: projectId,
+      isVerified: true,
+      verifiedBy: mentorId,
+    });
   });
 
   it("uploads a project JPEG for the authenticated user's project", async () => {

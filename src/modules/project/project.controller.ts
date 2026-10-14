@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import {
   BadRequestError,
+  ForbiddenError,
   UnauthorizedError,
 } from "../../core/CustomError.js";
 import { parseHelpImage, uploadHelpImage } from "../help/help.upload.js";
@@ -13,8 +14,10 @@ import {
   createProject,
   deleteMyProject,
   getMyProject,
+  listProjectsForVerification,
   listMyProjects,
   updateMyProject,
+  verifyProject,
 } from "./project.service.js";
 
 function validationError(
@@ -63,6 +66,31 @@ export async function ListMyProjects(
   if (!req.auth) throw new UnauthorizedError("Authentication required");
   const projects = await listMyProjects(req.auth.userId);
   res.status(200).json({ projects });
+}
+
+export async function ListProjectsForVerification(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) throw new UnauthorizedError("Authentication required");
+  if (req.auth.role !== "MENTOR")
+    throw new ForbiddenError("Only mentors can review projects");
+  const projects = await listProjectsForVerification();
+  res.status(200).json({ projects });
+}
+
+export async function VerifyProject(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (!req.auth) throw new UnauthorizedError("Authentication required");
+  if (req.auth.role !== "MENTOR")
+    throw new ForbiddenError("Only mentors can verify projects");
+  const parsed = projectIdSchema.safeParse(req.params);
+  if (!parsed.success) throw validationError(parsed.error.issues);
+
+  const project = await verifyProject(parsed.data.projectId, req.auth.userId);
+  res.status(200).json({ project });
 }
 
 export async function GetMyProject(
