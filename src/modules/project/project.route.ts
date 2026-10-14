@@ -1,6 +1,7 @@
 import express, { Router } from "express";
 import {
   authenticate,
+  authorizeRoles,
   requireGuardianConsent,
 } from "../../middleware/authenticate.js";
 import { UploadProjectImage } from "./project.controller.js";
@@ -8,8 +9,10 @@ import {
   CreateProject,
   DeleteMyProject,
   GetMyProject,
+  ListProjectsForVerification,
   ListMyProjects,
   UpdateMyProject,
+  VerifyProject,
 } from "./project.controller.js";
 import { maxImageSize } from "../help/help.upload.js";
 
@@ -22,6 +25,18 @@ const imageBody = express.raw({
 
 router.post("/image", ...access, imageBody, UploadProjectImage);
 router.post("/", ...access, CreateProject);
+router.get(
+  "/review/pending",
+  authenticate,
+  authorizeRoles("MENTOR"),
+  ListProjectsForVerification,
+);
+router.post(
+  "/:projectId/verify",
+  authenticate,
+  authorizeRoles("MENTOR"),
+  VerifyProject,
+);
 router.get("/", ...access, ListMyProjects);
 router.get("/:projectId", ...access, GetMyProject);
 router.patch("/:projectId", ...access, UpdateMyProject);
